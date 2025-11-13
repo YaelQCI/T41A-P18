@@ -55,18 +55,39 @@ def database():
 
     finally:
         # --- 3. TEARDOWN (Limpiar) ---
+        
+        # 1. Cierra el cursor original del setup (si existe)
         if cur:
             cur.close()
+        
+        # 2. Asegúrate de que la conexión esté abierta para limpiar
         if conn:
-            # Re-conectamos si la conexión se cerró para poder limpiar
             if conn.closed:
+                # Si la prueba la cerró, la reabrimos
                 conn = psycopg2.connect(**DB_CONFIG)
-                cur = conn.cursor()
+
+            # 3. Crea un NUEVO cursor solo para la limpieza
+            try:
+                # Usamos 'with' para que se cierre solo
+                with conn.cursor() as cleanup_cur:
+                    
+                    # --- IMPORTANTE ---
+                    # Cambia esta línea por la tabla correcta en CADA fixture
+                    # Ejemplo para la fixture 'database':
+                    cleanup_cur.execute("DROP TABLE IF EXISTS productos;")
+                    
+                    # En 'database_empleados' usa:
+                    # cleanup_cur.execute("DROP TABLE IF EXISTS empleados;")
+                    
+                    # En 'database_ciudades' usa:
+                    # cleanup_cur.execute("DROP TABLE IF EXISTS ciudades2;")
+                
+                # 4. Confirma (commit) el DROP TABLE
+                conn.commit()
             
-            cur.execute("DROP TABLE IF EXISTS productos;")
-            conn.commit()
-            cur.close()
-            conn.close()
+            finally:
+                # 5. Cierra la conexión
+                conn.close()
 
 # --- Función de Prueba ---
 
